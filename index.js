@@ -6,7 +6,7 @@ const app = express();
 
 const port = process.env.PORT;
 
-app.set("port", port || 4000);
+app.set("port", port || 3000);
 
 //CORS CONFIG
 
@@ -74,5 +74,5 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 //PORT 
 
-app.listen(port, `Server running on port ${port}`)
+app.listen(port, `Server running on this amazing port ${port}`)
 module.exports = app;
