@@ -1,0 +1,16 @@
+# Secrets and environment variables
+.env
+.env.*
+!.env.example
+
+# Linux system files
+.DS_Store
+.directory
+*~
+
+# Common compiled/dependency folders
+node_modules/
+__pycache__/
+*.class
+bin/
+obj/
