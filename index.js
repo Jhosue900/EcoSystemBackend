@@ -1,12 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
+const { databaseTest } = require('./src/controllers/controllers.js')
 
 const app = express();
 
-const port = process.env.PORT;
-
-app.set("port", port || 3000);
+const port = process.env.PORT || 3000;
 
 //CORS CONFIG
 
@@ -18,7 +17,6 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Permitir requests sin origin (Postman, servidor a servidor)
     if (!origin) {
       return callback(null, true);
     }
@@ -27,7 +25,6 @@ app.use(cors({
       callback(null, true);
     } else {
       console.log('Origin not allowed:');
-      // Temporalmente permitir todos para debugging
       callback(null, true);
     }
   },
@@ -40,7 +37,6 @@ app.use(cors({
 }));
 
 
-// Middleware adicional para asegurar headers CORS en todas las respuestas
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
@@ -51,7 +47,6 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
   }
   
-  // Responder inmediatamente a OPTIONS (preflight)
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }
@@ -72,7 +67,11 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // ROUTER
 
 
+
 //PORT 
 
-app.listen(port, `Server running on this amazing port ${port}`)
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
+
 module.exports = app;
