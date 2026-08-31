@@ -11,7 +11,8 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:4000',
-  'https://hoppscotch.io'
+  'https://hoppscotch.io',
+  'https://eco-system-gamma.vercel.app'
 ];
 
 app.use(cors({
