@@ -1,7 +1,8 @@
-//IMPORT CONTROLLERS
+const { Router } = require('express');
+const { register } = require('../controllers/controllers.js');
 
-const router = require('express');
+const router = Router();
 
-
+router.post('/register', register);
 
 module.exports = router;

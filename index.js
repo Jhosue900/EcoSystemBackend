@@ -1,31 +1,26 @@
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-const { databaseTest } = require('./src/controllers/controllers.js')
+const userRoutes = require('./src/routes/routes.js'); 
 
 const app = express();
-
 const port = process.env.PORT || 3000;
 
-//CORS CONFIG
-
+// CORS CONFIG
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'http://localhost:4000'
+  'http://localhost:4000',
+  'https://hoppscotch.io'
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.includes(origin)) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin) || origin.endsWith('.hoppscotch.io')) {
       callback(null, true);
     } else {
-      console.log('Origin not allowed:');
-      callback(null, true);
+      callback(null, true); 
     }
   },
   credentials: true,
@@ -36,39 +31,12 @@ app.use(cors({
   optionsSuccessStatus: 204
 }));
 
-
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-  }
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-  
-  next();
-});
-
-
-// Middleware de logging
 app.use(morgan("dev"));
-
-// Parseo de JSON y URL-encoded - DESPUÉS de CORS
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-
-
-// ROUTER
-
-
-
-//PORT 
+// MONTAJE DE RUTAS
+app.use('/api', userRoutes);
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
