@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
@@ -5,6 +6,12 @@ const userRoutes = require('./src/routes/routes.js');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+
+
+// JSON MIDDLEWARE
+
+app.use(express.json()); 
 
 // CORS CONFIG
 const allowedOrigins = [
@@ -39,8 +46,6 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // MONTAJE DE RUTAS
 app.use('/api', userRoutes);
 
-// Only run a real listening server outside of Vercel's serverless runtime.
-// Vercel invokes this module as a function per-request; it never needs app.listen().
 if (!process.env.VERCEL) {
   app.listen(port, () => {
     console.log(`Server running on port ${port}`);
