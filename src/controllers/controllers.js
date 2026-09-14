@@ -113,7 +113,39 @@ const login = async (req, res) => {
 };
 
 
+const createDonation = async (req, res) => {
+    try{
+
+        const { images, category, title, location, availability, time_limit } = req.body;
+
+        const { data, error } = await supabase
+            .from('donations').insert([{
+                images: images, 
+                category: category, 
+                title: title, 
+                location: location, 
+                availability: availability, 
+                time_limit: time_limit,
+                }])
+            .select(); 
+
+        if(error){
+            console.error(error)
+            return res.status(404).json("Internal server error")
+        }
+
+        return res.status(200).json("Donation created successfully")
+
+
+    }catch(error){
+        console.error(error)
+        res.status(404).json({ error: error.message})
+    }
+}
+
+
 module.exports = {
     register,
-    login
+    login,
+    createDonation
 };
