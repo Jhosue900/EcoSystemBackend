@@ -7,12 +7,6 @@ const userRoutes = require('./src/routes/routes.js');
 const app = express();
 const port = process.env.PORT || 3000;
 
-
-
-// JSON MIDDLEWARE
-
-app.use(express.json()); 
-
 // CORS CONFIG
 const allowedOrigins = [
   'http://localhost:5173',
@@ -22,13 +16,20 @@ const allowedOrigins = [
   'https://eco-system-gamma.vercel.app'
 ];
 
-app.use(cors({
+const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || origin.endsWith('.hoppscotch.io')) {
+    
+    const cleanOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+
+    if (
+      allowedOrigins.includes(cleanOrigin) || 
+      cleanOrigin.endsWith('.onrender.com') || 
+      cleanOrigin.endsWith('.vercel.app')
+    ) {
       callback(null, true);
     } else {
-      callback(null, true); 
+      callback(new Error('Bloqueado por la política de CORS'));
     }
   },
   credentials: true,
@@ -37,8 +38,13 @@ app.use(cors({
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 600,
   optionsSuccessStatus: 204
-}));
+};
 
+app.use(cors(corsOptions));
+
+app.options(/(.*)/, cors(corsOptions));
+
+// OTROS MIDDLEWARES
 app.use(morgan("dev"));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
