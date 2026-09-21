@@ -1,6 +1,9 @@
 const supabase = require('../database/db.js');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken')
+const jwt = require('jsonwebtoken');
+const { randomUUID } = require('crypto');
+
+const DONATION_BUCKET = 'donation-images';
 
 const register = async (req, res) => {
     try {
@@ -9,7 +12,8 @@ const register = async (req, res) => {
         const { data: numUsersData, error: errorUsersData } = await supabase.from('users').select('*').eq('mail', mail);
 
         if(errorUsersData){
-            return res.status(400).json({ message: error.message})
+            // Antes decía `error.message`, pero `error` aún no existe en este punto (ReferenceError)
+            return res.status(400).json({ message: errorUsersData.message})
         }
         
         if(numUsersData.length >= 1){
@@ -114,38 +118,99 @@ const login = async (req, res) => {
 
 
 const createDonation = async (req, res) => {
-    try{
+    // Rutas de las imágenes ya subidas, para borrarlas si algo falla después
+    const uploadedPaths = [];
 
-        const { images, category, title, location, availability, time_limit } = req.body;
+    try {
+        // Los campos de texto llegan en req.body (multipart) y las fotos en req.files (multer)
+        const { category, title, location, availability, time_limit } = req.body;
+        const files = req.files || [];
 
-        const { data, error } = await supabase
-            .from('donations').insert([{
-                images: images, 
-                category: category, 
-                title: title, 
-                location: location, 
-                availability: availability, 
-                time_limit: time_limit,
-                }])
-            .select(); 
+        const missing = Object.entries({ category, title, location, availability, time_limit })
+            .filter(([, value]) => typeof value !== 'string' || value.trim() === '')
+            .map(([key]) => key);
 
-        if(error){
-            console.error(error)
-            return res.status(404).json("Internal server error")
+        if (missing.length > 0) {
+            return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` });
         }
 
-        return res.status(200).json("Donation created successfully")
+        // 1. Subir imágenes a Supabase Storage y guardar sus URLs públicas
+        const imageUrls = [];
 
+        for (const file of files) {
+            const ext = file.mimetype === 'image/png' ? 'png' : 'jpg';
+            const path = `${req.user.id}/${randomUUID()}.${ext}`;
 
-    }catch(error){
-        console.error(error)
-        res.status(404).json({ error: error.message})
+            const { error: uploadError } = await supabase.storage
+                .from(DONATION_BUCKET)
+                .upload(path, file.buffer, { contentType: file.mimetype });
+
+            if (uploadError) {
+                throw new Error(`Image upload failed: ${uploadError.message}`);
+            }
+
+            uploadedPaths.push(path);
+            const { data: urlData } = supabase.storage.from(DONATION_BUCKET).getPublicUrl(path);
+            imageUrls.push(urlData.publicUrl);
+        }
+
+        // 2. Guardar la donación
+        const { data, error } = await supabase
+            .from('donations')
+            .insert([{
+                images: imageUrls,
+                category: category.trim(),
+                title: title.trim(),
+                location: location.trim(),
+                availability: availability.trim(),
+                time_limit: time_limit.trim(),
+                user_id: req.user.id, // quién donó (viene del JWT)
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        return res.status(201).json({ message: 'Donation created successfully', data });
+
+    } catch (error) {
+        console.error(error);
+
+        if (uploadedPaths.length > 0) {
+            await supabase.storage.from(DONATION_BUCKET).remove(uploadedPaths);
+        }
+
+        return res.status(500).json({ error: error.message || 'Internal server error' });
     }
-}
+};
+
+
+const getMyDonations = async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('donations')
+            .select('id, images, category, title, location, availability, time_limit, created_at')
+            .eq('user_id', req.user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        return res.status(200).json({ donations: data });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
 
 
 module.exports = {
     register,
     login,
-    createDonation
+    createDonation,
+    getMyDonations
 };
