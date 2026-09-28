@@ -208,9 +208,173 @@ const getMyDonations = async (req, res) => {
 };
 
 
+// ───────────── Puntos de acopio ─────────────
+
+const COLLECTION_CATEGORIES = ['Food', 'Clothing', 'Household', 'Kids & Toys'];
+
+// Publicar un espacio (casa, local, etc.) como punto de acopio
+const createCollectionPoint = async (req, res) => {
+    try {
+        const { name, address, city, schedule, phone, description, accepted_categories } = req.body;
+
+        const missing = Object.entries({ name, address, city, schedule, phone })
+            .filter(([, value]) => typeof value !== 'string' || value.trim() === '')
+            .map(([key]) => key);
+
+        if (missing.length > 0) {
+            return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` });
+        }
+
+        const categories = Array.isArray(accepted_categories)
+            ? accepted_categories.filter((c) => COLLECTION_CATEGORIES.includes(c))
+            : [];
+
+        if (categories.length === 0) {
+            return res.status(400).json({ error: 'Select at least one accepted category' });
+        }
+
+        const { data, error } = await supabase
+            .from('collection_points')
+            .insert([{
+                user_id: req.user.id, // quién ofrece el espacio (viene del JWT)
+                name: name.trim(),
+                address: address.trim(),
+                city: city.trim(),
+                schedule: schedule.trim(),
+                phone: phone.trim(),
+                description: typeof description === 'string' ? description.trim() : '',
+                accepted_categories: categories,
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        return res.status(201).json({ message: 'Collection point created successfully', data });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Listado de puntos activos (solo usuarios con sesión, porque incluye dirección y teléfono)
+const getCollectionPoints = async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('collection_points')
+            .select('id, name, address, city, schedule, phone, description, accepted_categories, created_at')
+            .eq('is_active', true)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        return res.status(200).json({ collection_points: data });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Puntos que publicó el usuario (activos e inactivos)
+const getMyCollectionPoints = async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('collection_points')
+            .select('id, name, address, city, schedule, phone, description, accepted_categories, is_active, created_at')
+            .eq('user_id', req.user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error(error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        return res.status(200).json({ collection_points: data });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Activar / pausar un punto propio
+const toggleCollectionPoint = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data: current, error: findError } = await supabase
+            .from('collection_points')
+            .select('is_active')
+            .eq('id', id)
+            .eq('user_id', req.user.id)
+            .maybeSingle();
+
+        if (findError) {
+            return res.status(500).json({ error: findError.message });
+        }
+        if (!current) {
+            return res.status(404).json({ error: 'Collection point not found' });
+        }
+
+        const { data, error } = await supabase
+            .from('collection_points')
+            .update({ is_active: !current.is_active })
+            .eq('id', id)
+            .eq('user_id', req.user.id)
+            .select()
+            .single();
+
+        if (error) {
+            return res.status(500).json({ error: error.message });
+        }
+
+        return res.status(200).json({ message: 'Collection point updated', data });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Eliminar un punto propio
+const deleteCollectionPoint = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const { data, error } = await supabase
+            .from('collection_points')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', req.user.id)
+            .select('id');
+
+        if (error) {
+            return res.status(500).json({ error: error.message });
+        }
+        if (!data || data.length === 0) {
+            return res.status(404).json({ error: 'Collection point not found' });
+        }
+
+        return res.status(200).json({ message: 'Collection point deleted' });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+
 module.exports = {
     register,
     login,
     createDonation,
-    getMyDonations
+    getMyDonations,
+    createCollectionPoint,
+    getCollectionPoints,
+    getMyCollectionPoints,
+    toggleCollectionPoint,
+    deleteCollectionPoint
 };

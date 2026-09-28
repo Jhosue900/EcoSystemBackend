@@ -1,6 +1,16 @@
 const { Router } = require('express');
 const multer = require('multer');
-const { register, login, createDonation, getMyDonations } = require('../controllers/controllers.js');
+const {
+    register,
+    login,
+    createDonation,
+    getMyDonations,
+    createCollectionPoint,
+    getCollectionPoints,
+    getMyCollectionPoints,
+    toggleCollectionPoint,
+    deleteCollectionPoint,
+} = require('../controllers/controllers.js');
 const { verifyToken } = require('../middleware/auth.js');
 
 const router = Router();
@@ -36,5 +46,12 @@ router.post('/register', register);
 router.post('/login', login);
 router.post('/createDonation', verifyToken, uploadImages, createDonation);
 router.get('/myDonations', verifyToken, getMyDonations);
+
+// Puntos de acopio
+router.get('/collectionPoints', verifyToken, getCollectionPoints);
+router.get('/myCollectionPoints', verifyToken, getMyCollectionPoints);
+router.post('/collectionPoints', verifyToken, createCollectionPoint);
+router.patch('/collectionPoints/:id/toggle', verifyToken, toggleCollectionPoint);
+router.delete('/collectionPoints/:id', verifyToken, deleteCollectionPoint);
 
 module.exports = router;
